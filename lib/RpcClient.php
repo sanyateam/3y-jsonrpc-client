@@ -37,7 +37,8 @@ class RpcClient {
      */
     protected $_connection = null;
     protected $_prepares   = false;
-    protected $_buffer;
+    protected $_buffer     = null;
+    protected $_timeout    = self::TIME_OUT;
 
     /**
      * RpcClient constructor.
@@ -93,6 +94,22 @@ class RpcClient {
      */
     public function setBuffer($buffer){
         $this->_buffer = $buffer;
+    }
+
+    /**
+     * 获取超时时间
+     * @return string
+     */
+    public function getTimeout(){
+        return $this->_timeout;
+    }
+
+    /**
+     * 设置超时时间
+     * @param int $time
+     */
+    public function setTimeout(int $time){
+        $this->_timeout = $time;
     }
 
     /**
@@ -259,7 +276,7 @@ class RpcClient {
             throw new InternalErrorException();
         }
         stream_set_blocking($this->_connection, true);
-        stream_set_timeout($this->_connection, self::TIME_OUT);
+        stream_set_timeout($this->_connection, $this->getTimeout());
         return $this->_connection;
     }
 
