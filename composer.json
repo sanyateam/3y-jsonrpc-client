@@ -1,0 +1,36 @@
+{
+    "name": "chaz6chez/wm-jsonrpc-client",
+    "description": "基于Tcp的JsonRpc2.0客户端",
+    "type": "project",
+    "keywords": [
+        "TCP",
+        "JsonRpc",
+        "workerman"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Chaz6chez",
+            "email": "admin@chaz6chez.cn"
+        }
+    ],
+    "require": {
+        "php": ">=7.2.0",
+        "ext-sockets": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "chaz6chez/structure": "1.0.*"
+    },
+    "autoload": {
+        "psr-4": {
+            "JsonRpc\\": "lib",
+            "Protocols\\": "protocols"
+        }
+    },
+    "repositories": {
+        "packagist": {
+            "type": "composer",
+            "url": "https://mirrors.aliyun.com/composer/"
+        }
+    }
+}
