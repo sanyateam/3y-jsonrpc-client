@@ -3,7 +3,7 @@ namespace JsonRpc\Exception;
 
 use Throwable;
 
-class MethodAlreadyException extends ServerErrorException {
+class MethodAlreadyException extends RpcException {
 
     /**
      * InternalErrorException constructor.
@@ -11,7 +11,7 @@ class MethodAlreadyException extends ServerErrorException {
      * @param int $code -32000 to -32099
      * @param Throwable|null $previous
      */
-    public function __construct($message , $code = -32001, Throwable $previous = null) {
-        parent::__construct("Server error [{$message}]", $code, $previous);
+    public function __construct($message , $code = -32002, Throwable $previous = null) {
+        parent::__construct("Server error [Method Already: {$message}]", $code, $previous);
     }
 }

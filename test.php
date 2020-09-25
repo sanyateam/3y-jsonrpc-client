@@ -1,33 +1,10 @@
 <?php
-class A{
-    public static function register(){
-        spl_autoload_register([self::class,'_autoload']);
-    }
+require_once __DIR__.'/vendor/autoload.php';
+$class = \JsonRpc\Format\JsonFmt::factory();
+$class->method = 1;
 
-    /**
-     * @param $class
-     * @throws Exception
-     */
-    protected static function _autoload($class){
-        throw new Exception("{$class} not found",'-0');
-    }
-}
-class B {
-    public function bbb(){
-        A::register();
-        $a = new C();
-    }
+$class->params = 1;
+$class->error = 1;
+$class->result = 1;
 
-    public function c(){
-        try {
-            $this->bbb();
-        }catch(Exception $exception){
-            echo $exception->getFile().':'.$exception->getLine()."\n";
-            echo $exception->getTraceAsString();
-            exit;
-        }
-    }
-}
-
-$a = new B();
-$a->c();
+var_dump($class->outputArrayByKey($class::FILTER_STRICT,$class::TYPE_REQUEST));
