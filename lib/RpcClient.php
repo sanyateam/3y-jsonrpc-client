@@ -6,6 +6,7 @@ use JsonRpc\Exception\InternalErrorException;
 use JsonRpc\Exception\InvalidRequestException;
 use JsonRpc\Exception\MethodAlreadyException;
 use JsonRpc\Exception\MethodNotFoundException;
+use JsonRpc\Exception\MethodNotReadyException;
 use JsonRpc\Exception\RpcException;
 use JsonRpc\Exception\ServerErrorException;
 use JsonRpc\Format\ErrorFmt;
@@ -145,7 +146,7 @@ class RpcClient {
      * null 表示服务器非json-rpc2.0标准
      * bool 表示服务内部错误
      *
-     * @throws MethodNotFoundException
+     * @throws MethodNotReadyException
      */
     public function asyncRecv(string $method, $id = '') {
         $key = $id ? $method.$id : $method;
@@ -153,7 +154,7 @@ class RpcClient {
             !isset(self::$_asyncInstances[$key]) or
             self::$_asyncInstances[$key] !== true
         ) {
-            throw new MethodNotFoundException("{$method}->{$id}");
+            throw new MethodNotReadyException("{$method}->{$id}");
 
         }
         self::$_asyncInstances[$key] = null;
