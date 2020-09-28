@@ -1,5 +1,5 @@
 {
-    "name": "chaz6chez/wm-jsonrpc-client",
+    "name": "sanyateam/3y-jsonrpc-client",
     "description": "基于Tcp的JsonRpc2.0客户端",
     "type": "project",
     "keywords": [
@@ -10,8 +10,7 @@
     "license": "MIT",
     "authors": [
         {
-            "name": "Chaz6chez",
-            "email": "admin@chaz6chez.cn"
+            "name": "sanyateam"
         }
     ],
     "require": {
