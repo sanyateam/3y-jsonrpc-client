@@ -20,11 +20,10 @@ class BaseFmt extends Struct {
 
     /**
      * 有特殊错误
-     * @param null $filed
      * @return bool
      */
-    public function hasSpecialError($filed = null) {
-        return boolval(!$this->_special_error);
+    public function hasSpecialError() {
+        return boolval($this->_special_error);
     }
 
     /**

@@ -34,7 +34,7 @@ class JsonRpc2 {
             throw new InvalidRequestException();
         }
         $fmt = JsonFmt::factory();
-        if(self::isAssoc($buffer)){
+        if(!self::isAssoc($buffer)){
             foreach($buffer as $value){
                 self::_throw($fmt, $value, $fmt::TYPE_REQUEST);
             }
@@ -66,8 +66,8 @@ class JsonRpc2 {
                 throw new InvalidRequestException();
             }
             $fmt = JsonFmt::factory();
-            # 索引数组
-            if(self::isAssoc($data)){
+            # 关联数组
+            if(!self::isAssoc($data)){
                 foreach($data as $value){
                     self::_throw($fmt, $value, $fmt::TYPE_RESPONSE);
                 }
@@ -91,13 +91,15 @@ class JsonRpc2 {
         if($fmt->hasError()){
             # 抛出异常
             $exception = $fmt->getError();
-            throw new $exception();
+            $exception = "JsonRpc\Exception\\{$exception}";
+            throw new $exception;
         }
         # 如果有特殊错误
         if($fmt->hasSpecialError()){
             # 抛出异常
             $exception = $fmt->getSpecialError();
-            throw new $exception();
+            $exception = "JsonRpc\Exception\\{$exception}";
+            throw new $exception;
         }
     }
 
@@ -119,7 +121,7 @@ class JsonRpc2 {
     }
 
     /**
-     * 是否是索引数组
+     * 是否是关联数组
      * @param array $array
      * @return bool
      */
