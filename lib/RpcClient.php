@@ -2,6 +2,7 @@
 
 namespace JsonRpc;
 
+use JsonRpc\Exception\ConnectException;
 use JsonRpc\Exception\InternalErrorException;
 use JsonRpc\Exception\InvalidRequestException;
 use JsonRpc\Exception\MethodAlreadyException;
@@ -170,9 +171,14 @@ class RpcClient {
      * @return array
      */
     public function call(string $method, array $arguments, $id = '') {
-        if(!$res = $this->_sendData($method, $arguments, $id)){
+        $res = $this->_sendData($method, $arguments, $id);
+        if($res === false){
+            return $this->_res(['connection error'],false);
+        }
+        if($res instanceof JsonFmt){
             return $this->_res($res->outputArray(),null);
         }
+
         $res = $this->_recvData();
         if($res !== false and $res !== null){
             return $this->_res($res, true);
@@ -208,6 +214,7 @@ class RpcClient {
      * @return bool|JsonFmt
      *
      * JsonEmt.object 表示有异常
+     * false          表示连接失败
      * true           表示成功
      */
     protected function _sendData(string $method, array $arguments, $id = '') {
@@ -219,9 +226,11 @@ class RpcClient {
         try {
             $json = JsonRpc2::encode($fmt->outputArray($fmt::FILTER_STRICT));
             # 发送数据
-            if(fwrite($this->_openConnection(), $json) !== strlen($json)) {
+            if($a = (fwrite($this->_openConnection(), $json) !== strlen($json))) {
                 throw new InvalidRequestException();
             }
+        }catch(ConnectException $connectException){
+            return false;
         }catch(RpcException $rpcException){
             $error->code    = $rpcException->getCode();
             $error->message = $rpcException->getMessage();
@@ -250,14 +259,16 @@ class RpcClient {
      * bool 表示服务内部错误
      */
     protected function _recvData() {
-        $this->setBuffer(null);
-        $this->setBuffer(fgets($this->_connection));
-        $this->_closeConnection();
         try {
+            $this->setBuffer(null);
+            $this->setBuffer(fgets($this->_connection));
+            $this->_closeConnection();
+
             return JsonRpc2::decode($this->getBuffer(), $this->_prepares);
         }catch(RpcException $rpcException){
             return null;
         }catch(\Exception $exception){
+
             return false;
         }
     }
@@ -265,16 +276,16 @@ class RpcClient {
     /**
      * 打开连接
      * @return false|resource
-     * @throws InternalErrorException
+     * @throws ConnectException
      */
     protected function _openConnection() {
-        $this->_connection = stream_socket_client(
+        $this->_connection = @stream_socket_client(
             self::$_addressArray[array_rand(self::$_addressArray)],
             $err_no,
             $err_msg
         );
         if(!$this->_connection) {
-            throw new InternalErrorException();
+            throw new ConnectException();
         }
         stream_set_blocking($this->_connection, true);
         stream_set_timeout($this->_connection, $this->getTimeout());
