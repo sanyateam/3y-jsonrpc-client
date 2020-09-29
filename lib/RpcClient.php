@@ -115,52 +115,98 @@ class RpcClient {
     }
 
     /**
-     * @param $method
-     * @param $arguments
+     * @param string $method
+     * @param array $arguments
      * @param string $id
-     * @return bool|JsonFmt
+     * @return array
      *
-     * JsonEmt.object 表示有异常
-     * true           表示成功
+     * return[0] = key            asyncRecv的必要入参，key = method:id
+     *
+     * return[1] = JsonEmt.object 表示有异常
+     *             false          表示连接失败
+     *             true           表示成功
      *
      * @throws MethodAlreadyException
      */
-    public function asyncSend($method, $arguments, $id = '') {
-        $key = $id ? $method.$id : $method;
+    public function asyncSend(string $method, array $arguments, $id) {
+        $key = "{$method}:{$id}";
         if(
             isset(self::$_asyncInstances[$key]) and
-            self::$_asyncInstances[$key]
+            self::$_asyncInstances[$key] instanceof RpcClient
         ) {
-            throw new MethodAlreadyException("{$method}->{$id}");
+            throw new MethodAlreadyException($key);
         }
-        self::$_asyncInstances[$key] = true;
+        self::$_asyncInstances[$key] = self::instance(self::$_addressArray);
 
-        return self::instance(self::$_addressArray)->_sendData($method, $arguments, $id);
+        return $this->_res(
+            self::$_asyncInstances[$key]->_sendData($method, $arguments, $id),
+            $key
+        );
     }
 
     /**
+     * 异步通知发送
      * @param string $method
-     * @param string $id
-     * @return array|bool|null
+     * @param array $arguments
+     * @param bool $sole 开启唯一
+     * @return array
      *
-     * array 表示成功
-     * null 表示服务器非json-rpc2.0标准
-     * bool 表示服务内部错误
+     * return[0] = key            asyncRecv的必要入参
+     *                            sole = true时，key = method
+     *                            sole = false时，key = method_notice:uuid
+     *
+     * return[1] = JsonEmt.object 表示有异常
+     *             false          表示连接失败
+     *             true           表示成功
+     *
+     * @throws MethodAlreadyException
+     */
+    public function asyncNoticeSend(string $method, array $arguments, bool $sole = true) {
+        $key = $sole ? $method : self::uuid("{$method}_notice:");
+        if(
+            isset(self::$_asyncInstances[$key]) and
+            self::$_asyncInstances[$key] instanceof RpcClient
+        ) {
+            throw new MethodAlreadyException($key);
+        }
+        self::$_asyncInstances[$key] = self::instance(self::$_addressArray);
+
+        return $this->_res(
+            self::$_asyncInstances[$key]->_sendData($method, $arguments),
+            $key
+        );
+    }
+
+    /**
+     * @param string $key
+     * @return array
+     *
+     * return[0] = tag            bool|null
+     *                            true:  成功
+     *                            false: 内部错误|连接错误
+     *                            null:  jsonRpc-2.0协议错误
+     *
+     * return[1] = data           array 数据
      *
      * @throws MethodNotReadyException
      */
-    public function asyncRecv(string $method, $id = '') {
-        $key = $id ? $method.$id : $method;
+    public function asyncRecv($key) {
         if(
             !isset(self::$_asyncInstances[$key]) or
-            self::$_asyncInstances[$key] !== true
+            !self::$_asyncInstances[$key] instanceof RpcClient
         ) {
-            throw new MethodNotReadyException("{$method}->{$id}");
-
+            throw new MethodNotReadyException($key);
         }
-        self::$_asyncInstances[$key] = null;
 
-        return self::instance(self::$_addressArray)->_recvData();
+        $res = self::$_asyncInstances[$key]->_recvData();
+        self::$_asyncInstances[$key] = null;
+        if($res === false){
+            return $this->_res(['connection error -> async_recv'],false);
+        }
+        if($res instanceof JsonFmt){
+            return $this->_res($res->outputArray(),null);
+        }
+        return $this->_res($res, true);
     }
 
     /**
@@ -169,26 +215,37 @@ class RpcClient {
      * @param array $arguments
      * @param string $id
      * @return array
+     *
+     * return[0] = tag            bool|null
+     *                            true:  成功
+     *                            false: 内部错误|连接错误
+     *                            null:  jsonRpc-2.0协议错误
+     *
+     * return[1] = data           array 数据
+     *
      */
     public function call(string $method, array $arguments, $id = '') {
         $res = $this->_sendData($method, $arguments, $id);
         if($res === false){
-            return $this->_res(['connection error'],false);
+            return $this->_res(['connection error -> send'],false);
         }
         if($res instanceof JsonFmt){
             return $this->_res($res->outputArray(),null);
         }
 
         $res = $this->_recvData();
-        if($res !== false and $res !== null){
-            return $this->_res($res, true);
+        if($res === false){
+            return $this->_res(['connection error -> recv'],false);
         }
-        return $this->_res([], $res);
+        if($res instanceof JsonFmt){
+            return $this->_res($res->outputArray(),null);
+        }
+        return $this->_res($res, true);
     }
 
     /**
-     * @param array $data 数据
-     * @param bool $tag 标记
+     * @param mixed $data 数据
+     * @param bool|string $tag 标记
      * @return array
      */
     protected function _res($data, $tag){
@@ -252,24 +309,41 @@ class RpcClient {
 
     /**
      * 从服务端接收数据
-     * @return array|null|bool
+     * @return bool|array|JsonFmt
      *
-     * array 表示成功
-     * null 表示服务器非json-rpc2.0标准
-     * bool 表示服务内部错误
+     * JsonEmt.object 表示有异常
+     * false          表示连接失败
+     * array          表示成功
      */
     protected function _recvData() {
+        $fmt         = JsonFmt::factory();
+        $error       = ErrorFmt::factory();
         try {
             $this->setBuffer(null);
             $this->setBuffer(fgets($this->_connection));
             $this->_closeConnection();
 
-            return JsonRpc2::decode($this->getBuffer(), $this->_prepares);
-        }catch(RpcException $rpcException){
-            return null;
-        }catch(\Exception $exception){
-
+            if($this->getBuffer() !== "\n"){
+                return JsonRpc2::decode($this->getBuffer(), $this->_prepares);
+            }
+            return [];
+        }catch(ConnectException $connectException){
             return false;
+        }catch(RpcException $rpcException){
+            $error->code    = $rpcException->getCode();
+            $error->message = $rpcException->getMessage();
+            $fmt->error     = $error->outputArray();
+            return $fmt;
+        }catch(\Exception $exception){
+            $serverException = new ServerErrorException();
+            $error->code    = $serverException->getCode();
+            $error->message = $serverException->getMessage();
+            $error->data    = [
+                'message' => $exception->getMessage(),
+                'code'    => $exception->getCode()
+            ];
+            $fmt->error     = $error->outputArray();
+            return $fmt;
         }
     }
 
@@ -298,5 +372,31 @@ class RpcClient {
     protected function _closeConnection() {
         fclose($this->_connection);
         $this->_connection = null;
+    }
+
+    public function getInstance(){
+        return self::$_instances;
+    }
+
+    public function getAsyncInstance(){
+        return self::$_asyncInstances;
+    }
+
+    /**
+     * @param $prefix
+     * @return string
+     */
+    public static function uuid($prefix = '') : string {
+        if(extension_loaded('uuid') and function_exists('uuid_create')){
+            return $prefix . uuid_create(1);
+        }
+        $chars = md5(uniqid(mt_rand(), true));
+        $uuid  = substr($chars,0,8) . '-';
+        $uuid .= substr($chars,8,4) . '-';
+        $uuid .= substr($chars,12,4) . '-';
+        $uuid .= substr($chars,16,4) . '-';
+        $uuid .= substr($chars,20,12);
+        return $prefix . $uuid;
+
     }
 }
