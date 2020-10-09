@@ -38,6 +38,8 @@ class RpcClient {
      * @var resource 服务端的socket连接
      */
     protected $_connection = null;
+    protected $_id         = null; # 实例id
+    protected $_async_id   = null; # 上一个激活的异步客户端id
     protected $_prepares   = false;
     protected $_buffer     = null;
     protected $_timeout    = self::TIME_OUT;
@@ -57,6 +59,7 @@ class RpcClient {
      * 注册异常响应
      */
     public function register() {
+        $this->_id = self::uuid();
         spl_autoload_register([$this, '_autoload']);
     }
 
@@ -66,10 +69,18 @@ class RpcClient {
      */
     public static function instance(array $address = []) {
 
-        if(!isset(self::$_instances) or self::$_instances instanceof RpcClient) {
+        if(!self::$_instances or !self::$_instances instanceof RpcClient) {
             self::$_instances = new self($address);
         }
         return self::$_instances;
+    }
+
+    public static function getInstance(){
+        return self::$_instances;
+    }
+
+    public static function getAsyncInstance(){
+        return self::$_asyncInstances;
     }
 
     /**
@@ -137,6 +148,7 @@ class RpcClient {
             throw new MethodAlreadyException($key);
         }
         self::$_asyncInstances[$key] = self::instance(self::$_addressArray);
+        $this->_async_id             = $key;
 
         return $this->_res(
             self::$_asyncInstances[$key]->_sendData($method, $arguments, $id),
@@ -170,6 +182,7 @@ class RpcClient {
             throw new MethodAlreadyException($key);
         }
         self::$_asyncInstances[$key] = self::instance(self::$_addressArray);
+        $this->_async_id             = $key;
 
         return $this->_res(
             self::$_asyncInstances[$key]->_sendData($method, $arguments),
@@ -200,6 +213,8 @@ class RpcClient {
 
         $res = self::$_asyncInstances[$key]->_recvData();
         self::$_asyncInstances[$key] = null;
+        $this->_async_id = ($this->_async_id === $key) ? null : $this->_async_id;
+
         if($res === false){
             return $this->_res(['connection error -> async_recv'],false);
         }
@@ -241,6 +256,43 @@ class RpcClient {
             return $this->_res($res->outputArray(),null);
         }
         return $this->_res($res, true);
+    }
+
+    /**
+     * 发送
+     * @param string $json
+     * @param int $timeout
+     * @return bool
+     */
+    public function send(string $json, $timeout = 5) {
+        try {
+            $this->setTimeout($timeout);
+            return boolval(fwrite($this->_openConnection(true), $json) !== strlen($json));
+        }catch(ConnectException $connectException){
+            return false;
+        }catch(\Exception $exception){
+            return false;
+        }
+    }
+
+    /**
+     * 获取
+     * @return array
+     */
+    public function get(){
+        $res = [];
+        while($this->_buffer = fgets($this->_connection)){
+            $res[] = $this->_buffer;
+        }
+        $this->close();
+        return $res;
+    }
+
+    /**
+     * 关闭连接
+     */
+    public function close(){
+        $this->_closeConnection();
     }
 
     /**
@@ -349,19 +401,23 @@ class RpcClient {
 
     /**
      * 打开连接
-     * @return false|resource
+     * @param bool $mode
+     * @return resource
      * @throws ConnectException
      */
-    protected function _openConnection() {
-        $this->_connection = @stream_socket_client(
-            self::$_addressArray[array_rand(self::$_addressArray)],
-            $err_no,
-            $err_msg
-        );
-        if(!$this->_connection) {
+    protected function _openConnection($mode = true) {
+        if(!is_resource($this->_connection)){
+            $this->_connection = @stream_socket_client(
+                self::$_addressArray[array_rand(self::$_addressArray)],
+                $err_no,
+                $err_msg
+            );
+        }
+
+        if(!$this->_connection or !is_resource($this->_connection)) {
             throw new ConnectException();
         }
-        stream_set_blocking($this->_connection, true);
+        stream_set_blocking($this->_connection, $mode);
         stream_set_timeout($this->_connection, $this->getTimeout());
         return $this->_connection;
     }
@@ -372,14 +428,7 @@ class RpcClient {
     protected function _closeConnection() {
         fclose($this->_connection);
         $this->_connection = null;
-    }
-
-    public function getInstance(){
-        return self::$_instances;
-    }
-
-    public function getAsyncInstance(){
-        return self::$_asyncInstances;
+        $this->_id         = null;
     }
 
     /**
