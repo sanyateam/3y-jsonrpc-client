@@ -6,32 +6,32 @@ require_once ROOT_PATH . '/vendor/autoload.php';
 
 Use JsonRpc\RpcClient;
 
-echo "---- send ----\n";
-$client = RpcClient::instance(['tcp://localhost:5252']);
-var_dump(RpcClient::getInstance());
-
-RpcClient::instance(['tcp://localhost:5252'])->send('{"jsonrpc":"2.0","id":"039f946b-1e7c-258e-9755-f445ae7a4fd5",');
-var_dump(RpcClient::getInstance());
-RpcClient::instance(['tcp://localhost:5252'])->send('"method":"Test.Test.demo","params":{"call":"Test.Test.demo2"}}'."\n");
-var_dump(RpcClient::getInstance());
-RpcClient::instance(['tcp://localhost:5252'])->send('{"jsonrpc":"2.0","id":"039f946b-1e7c-258e-9755-f445ae7a4fd1",');
-var_dump(RpcClient::getInstance());
-RpcClient::instance(['tcp://localhost:5252'])->send('"method":"Test.Test.demo","params":{"call":"Test.Test.demo1"}}'."\n");
-var_dump(RpcClient::getInstance());
-$v = RpcClient::instance(['tcp://localhost:5252'])->get();
-
-var_dump($v);
-echo "---- send ----\n";
-
-//echo "---- call ----\n";
-//$v = RpcClient::instance(['tcp://localhost:5252'])->call(
-//    'Test.Test.demo',
-//    ['call' => 'Test.Test.demo'],
-//    RpcClient::uuid()
-//);
+//echo "---- send ----\n";
+//$client = RpcClient::instance(['tcp://localhost:5252']);
+//var_dump(RpcClient::getInstance());
+//
+//RpcClient::instance(['tcp://localhost:5252'])->send('{"jsonrpc":"2.0","id":"039f946b-1e7c-258e-9755-f445ae7a4fd5",');
+//var_dump(RpcClient::getInstance());
+//RpcClient::instance(['tcp://localhost:5252'])->send('"method":"Test.Test.demo","params":{"call":"Test.Test.demo2"}}'."\n");
+//var_dump(RpcClient::getInstance());
+//RpcClient::instance(['tcp://localhost:5252'])->send('{"jsonrpc":"2.0","id":"039f946b-1e7c-258e-9755-f445ae7a4fd1",');
+//var_dump(RpcClient::getInstance());
+//RpcClient::instance(['tcp://localhost:5252'])->send('"method":"Test.Test.demo","params":{"call":"Test.Test.demo1"}}'."\n");
+//var_dump(RpcClient::getInstance());
+//$v = RpcClient::instance(['tcp://localhost:5252'])->get();
 //
 //var_dump($v);
-//echo "---- call ----\n";
+//echo "---- send ----\n";
+
+echo "---- call ----\n";
+$v = RpcClient::instance(['tcp://localhost:5252'])->call(
+    'Server.UserServer.getUser',
+    ['call' => 'Server.UserServer.getUser'],
+    RpcClient::uuid()
+);
+
+var_dump($v);
+echo "---- call ----\n";
 
 //echo "---- call_notice ----\n";
 //$v = RpcClient::instance(['tcp://localhost:5252'])->call('Test.Test.demo',[
