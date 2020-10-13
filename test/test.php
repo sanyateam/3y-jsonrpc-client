@@ -25,8 +25,24 @@ Use JsonRpc\RpcClient;
 
 echo "---- call ----\n";
 $v = RpcClient::instance(['tcp://localhost:5252'])->call(
-    'Server.UserServer.getUser',
-    ['call' => 'Server.UserServer.getUser'],
+    'Reject.Test.demo',
+    ['call' => 'Reject.Test.demo'],
+    RpcClient::uuid()
+);
+
+var_dump($v);
+
+$v = RpcClient::instance(['tcp://localhost:5252'])->call(
+    'Test.Test.demo',
+    ['call' => 'Test.Test.demo'],
+    RpcClient::uuid()
+);
+
+var_dump($v);
+
+$v = RpcClient::instance(['tcp://localhost:5252'])->call(
+    'MethodNotFound.Test.demo',
+    ['call' => 'MethodNotFound.Test.demo'],
     RpcClient::uuid()
 );
 
