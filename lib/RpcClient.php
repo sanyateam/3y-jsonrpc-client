@@ -147,11 +147,11 @@ class RpcClient {
         ) {
             throw new MethodAlreadyException($key);
         }
-        self::$_asyncInstances[$key] = self::instance(self::$_addressArray);
-        $this->_async_id             = $key;
+        $async = self::$_asyncInstances[$key] = self::instance(self::$_addressArray);
+        $this->_async_id                      = $key;
 
         return $this->_res(
-            self::$_asyncInstances[$key]->_sendData($method, $arguments, $id),
+            $async->_sendData($method, $arguments, $id),
             $key
         );
     }
@@ -181,11 +181,11 @@ class RpcClient {
         ) {
             throw new MethodAlreadyException($key);
         }
-        self::$_asyncInstances[$key] = self::instance(self::$_addressArray);
+        $async = self::$_asyncInstances[$key] = self::instance(self::$_addressArray);
         $this->_async_id             = $key;
 
         return $this->_res(
-            self::$_asyncInstances[$key]->_sendData($method, $arguments),
+            $async->_sendData($method, $arguments),
             $key
         );
     }
@@ -204,24 +204,21 @@ class RpcClient {
      * @throws MethodNotReadyException
      */
     public function asyncRecv($key) {
-        if(
-            !isset(self::$_asyncInstances[$key]) or
-            !self::$_asyncInstances[$key] instanceof RpcClient
-        ) {
-            throw new MethodNotReadyException($key);
-        }
+        $async = self::$_asyncInstances[$key];
+        if($async instanceof RpcClient){
+            $res = $async->_recvData();
+            self::$_asyncInstances[$key] = null;
+            $this->_async_id = ($this->_async_id === $key) ? null : $this->_async_id;
 
-        $res = self::$_asyncInstances[$key]->_recvData();
-        self::$_asyncInstances[$key] = null;
-        $this->_async_id = ($this->_async_id === $key) ? null : $this->_async_id;
-
-        if($res === false){
-            return $this->_res(['connection error -> async_recv'],false);
+            if($res === false){
+                return $this->_res(['connection error -> async_recv'],false);
+            }
+            if($res instanceof JsonFmt){
+                return $this->_res($res->outputArray(),null);
+            }
+            return $this->_res($res, true);
         }
-        if($res instanceof JsonFmt){
-            return $this->_res($res->outputArray(),null);
-        }
-        return $this->_res($res, true);
+        throw new MethodNotReadyException($key);
     }
 
     /**
