@@ -69,8 +69,8 @@ class RpcClient {
      */
     public static function instance(array $address = []) {
 
-        if(!self::$_instances or !self::$_instances instanceof RpcClient) {
-            self::$_instances = new self($address);
+        if(!static::$_instances or !static::$_instances instanceof RpcClient) {
+            static::$_instances = new static($address);
         }
         return self::$_instances;
     }
@@ -142,13 +142,13 @@ class RpcClient {
     public function asyncSend(string $method, array $arguments, $id) {
         $key = "{$method}:{$id}";
         if(
-            isset(self::$_asyncInstances[$key]) and
-            self::$_asyncInstances[$key] instanceof RpcClient
+            isset(static::$_asyncInstances[$key]) and
+            static::$_asyncInstances[$key] instanceof RpcClient
         ) {
             throw new MethodAlreadyException($key);
         }
-        $async = self::$_asyncInstances[$key] = self::instance(self::$_addressArray);
-        $this->_async_id                      = $key;
+        $async = static::$_asyncInstances[$key] = static::instance(static::$_addressArray);
+        $this->_async_id                        = $key;
 
         return $this->_res(
             $async->_sendData($method, $arguments, $id),
@@ -185,7 +185,7 @@ class RpcClient {
         $this->_async_id             = $key;
 
         return $this->_res(
-            $async->_sendData($method, $arguments),
+            $async->_sendData( $method, $arguments),
             $key
         );
     }
@@ -204,14 +204,16 @@ class RpcClient {
      * @throws MethodNotReadyException
      */
     public function asyncRecv($key) {
-        $async = self::$_asyncInstances[$key];
-        if($async instanceof RpcClient){
+        if(
+            isset(self::$_asyncInstances[$key]) and
+            (($async = self::$_asyncInstances[$key]) instanceof RpcClient)
+        ){
             $res = $async->_recvData();
             self::$_asyncInstances[$key] = null;
             $this->_async_id = ($this->_async_id === $key) ? null : $this->_async_id;
 
             if($res === false){
-                return $this->_res(['connection error -> async_recv'],false);
+                return $async->_res(['connection error -> async_recv'],false);
             }
             if($res instanceof JsonFmt){
                 return $this->_res($res->outputArray(),null);
@@ -246,6 +248,7 @@ class RpcClient {
         }
 
         $res = $this->_recvData();
+        $this->close();
         if($res === false){
             return $this->_res(['connection error -> recv'],false);
         }
@@ -264,7 +267,7 @@ class RpcClient {
     public function send(string $json, $timeout = 5) {
         try {
             $this->setTimeout($timeout);
-            return boolval(fwrite($this->_openConnection(true), $json) !== strlen($json));
+            return boolval(fwrite($this->_openConnection( true), $json) !== strlen($json));
         }catch(ConnectException $connectException){
             return false;
         }catch(\Exception $exception){
@@ -274,14 +277,17 @@ class RpcClient {
 
     /**
      * 获取
+     * @param bool $close
      * @return array
      */
-    public function get(){
+    public function get($close = true){
         $res = [];
         while($this->_buffer = fgets($this->_connection)){
             $res[] = $this->_buffer;
         }
-        $this->close();
+        if($close){
+            $this->close();
+        }
         return $res;
     }
 
@@ -358,7 +364,7 @@ class RpcClient {
 
     /**
      * 从服务端接收数据
-     * @return bool|array|JsonFmt
+     * @return array|bool|JsonFmt
      *
      * JsonEmt.object 表示有异常
      * false          表示连接失败
@@ -370,7 +376,6 @@ class RpcClient {
         try {
             $this->setBuffer(null);
             $this->setBuffer(fgets($this->_connection));
-            $this->_closeConnection();
 
             if($this->getBuffer() !== "\n"){
                 return JsonRpc2::decode($this->getBuffer(), $this->_prepares);
