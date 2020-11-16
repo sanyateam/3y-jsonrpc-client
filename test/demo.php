@@ -9,7 +9,9 @@ function getCurrentTime() {
 }
 echo "---- call_notice ----\n";
 $start = getCurrentTime();
-$v = \JsonRpc\RpcClient::instance(['tcp://localhost:5252'])->call('Server.UserServer.checker',[
+$client = \JsonRpc\RpcClient::instance(['tcp://localhost:5454']);
+$client->setTimeout(0);
+$v = $client->call('Server.UserExecute.UserAssetCheck',[
     'call' => 'Server.UserServer.checker',
 ]);
 
