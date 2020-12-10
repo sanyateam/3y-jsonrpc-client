@@ -15,7 +15,7 @@ use JsonRpc\Format\JsonFmt;
  * @link https://www.jsonrpc.org/
  * @license https://www.jsonrpc.org/specification
  */
-class JsonRpc2 {
+class JsonRpc2Client {
 
     /**
      * 打包

@@ -12,7 +12,7 @@ use JsonRpc\Exception\RpcException;
 use JsonRpc\Exception\ServerErrorException;
 use JsonRpc\Format\ErrorFmt;
 use JsonRpc\Format\JsonFmt;
-use Protocols\JsonRpc2;
+use Protocols\JsonRpc2Client as JsonRpc2;
 
 class RpcClient {
 
@@ -338,9 +338,10 @@ class RpcClient {
         try {
             $json = JsonRpc2::encode($fmt->outputArray($fmt::FILTER_STRICT));
             # 发送数据
-            if($a = (fwrite($this->_openConnection(), $json) !== strlen($json))) {
+            if(($a = fwrite($this->_openConnection(), $json)) !== strlen($json)) {
                 throw new InvalidRequestException();
-            }
+            }var_dump($a);
+            return $a;
         }catch(ConnectException $connectException){
             return false;
         }catch(RpcException $rpcException){
@@ -359,7 +360,6 @@ class RpcClient {
             $fmt->error     = $error->outputArray();
             return $fmt;
         }
-        return true;
     }
 
     /**
@@ -374,6 +374,9 @@ class RpcClient {
         $fmt         = JsonFmt::factory();
         $error       = ErrorFmt::factory();
         try {
+            if(!is_resource($this->_connection)){
+                return false;
+            }
             $this->setBuffer(null);
             $this->setBuffer(fgets($this->_connection));
 
@@ -415,12 +418,13 @@ class RpcClient {
                 $err_msg
             );
         }
-
         if(!$this->_connection or !is_resource($this->_connection)) {
             throw new ConnectException();
         }
         stream_set_blocking($this->_connection, $mode);
-        stream_set_timeout($this->_connection, $this->getTimeout());
+        if($this->getTimeout()){
+            stream_set_timeout($this->_connection, $this->getTimeout());
+        }
         return $this->_connection;
     }
 
