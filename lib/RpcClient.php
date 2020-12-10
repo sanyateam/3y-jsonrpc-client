@@ -12,7 +12,7 @@ use JsonRpc\Exception\RpcException;
 use JsonRpc\Exception\ServerErrorException;
 use JsonRpc\Format\ErrorFmt;
 use JsonRpc\Format\JsonFmt;
-use Protocols\JsonRpc2;
+use Protocols\JsonRpc2Client as JsonRpc2;
 
 class RpcClient {
 
@@ -340,7 +340,7 @@ class RpcClient {
             # 发送数据
             if(($a = fwrite($this->_openConnection(), $json)) !== strlen($json)) {
                 throw new InvalidRequestException();
-            }
+            }var_dump($a);
             return $a;
         }catch(ConnectException $connectException){
             return false;
@@ -418,7 +418,6 @@ class RpcClient {
                 $err_msg
             );
         }
-
         if(!$this->_connection or !is_resource($this->_connection)) {
             throw new ConnectException();
         }

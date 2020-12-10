@@ -63,15 +63,15 @@ function getCurrentTime() {
 echo "---- async ----\n";
 $start = getCurrentTime();
 try {
-    $rpc = RpcClient::instance(['tcp://localhost:5252']);
+    $rpc = RpcClient::instance(['tcp://192.168.4.228:5454']);
     [$key1, $res] = $rpc->asyncSend(
-        'Server.UserServer.checker',
+        'Server.Test.RedisTest',//'Server.UserServer.checker',
         ['async' => 'send1'],
         RpcClient::uuid()
     );
 
     [$key2, $res] = $rpc->asyncSend(
-        'Server.UserServer.checker1',
+        'Server.Test.MysqlTest',//'Server.UserServer.checker1',
         ['async' => 'send2'],
         RpcClient::uuid()
     );
