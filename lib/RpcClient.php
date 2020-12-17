@@ -340,7 +340,7 @@ class RpcClient {
             # 发送数据
             if(($a = fwrite($this->_openConnection(), $json)) !== strlen($json)) {
                 throw new InvalidRequestException();
-            }var_dump($a);
+            }
             return $a;
         }catch(ConnectException $connectException){
             return false;
