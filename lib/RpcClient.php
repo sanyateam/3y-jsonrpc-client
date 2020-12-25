@@ -65,6 +65,14 @@ class RpcClient {
 
     /**
      * @param array $address
+     * @return static
+     */
+    public static function factory(array $address = []){
+        return new static($address);
+    }
+
+    /**
+     * @param array $address
      * @return RpcClient
      */
     public static function instance(array $address = []) {
@@ -147,45 +155,11 @@ class RpcClient {
         ) {
             throw new MethodAlreadyException($key);
         }
-        $async = static::$_asyncInstances[$key] = static::instance(static::$_addressArray);
+        $async = static::$_asyncInstances[$key] = static::factory(static::$_addressArray);
         $this->_async_id                        = $key;
 
         return $this->_res(
             $async->_sendData($method, $arguments, $id),
-            $key
-        );
-    }
-
-    /**
-     * 异步通知发送
-     * @param string $method
-     * @param array $arguments
-     * @param bool $sole 开启唯一
-     * @return array
-     *
-     * return[0] = key            asyncRecv的必要入参
-     *                            sole = true时，key = method
-     *                            sole = false时，key = method_notice:uuid
-     *
-     * return[1] = JsonEmt.object 表示有异常
-     *             false          表示连接失败
-     *             true           表示成功
-     *
-     * @throws MethodAlreadyException
-     */
-    public function asyncNoticeSend(string $method, array $arguments, bool $sole = true) {
-        $key = $sole ? $method : self::uuid("{$method}_notice:");
-        if(
-            isset(self::$_asyncInstances[$key]) and
-            self::$_asyncInstances[$key] instanceof RpcClient
-        ) {
-            throw new MethodAlreadyException($key);
-        }
-        $async = self::$_asyncInstances[$key] = self::instance(self::$_addressArray);
-        $this->_async_id             = $key;
-
-        return $this->_res(
-            $async->_sendData( $method, $arguments),
             $key
         );
     }
@@ -209,11 +183,11 @@ class RpcClient {
             (($async = self::$_asyncInstances[$key]) instanceof RpcClient)
         ){
             $res = $async->_recvData();
+            $async->close();
             self::$_asyncInstances[$key] = null;
             $this->_async_id = ($this->_async_id === $key) ? null : $this->_async_id;
-
             if($res === false){
-                return $async->_res(['connection error -> async_recv'],false);
+                return $this->_res(['connection error -> async_recv'],false);
             }
             if($res instanceof JsonFmt){
                 return $this->_res($res->outputArray(),null);
@@ -223,6 +197,26 @@ class RpcClient {
         throw new MethodNotReadyException($key);
     }
 
+    /**
+     * 异步通知发送
+     * @param string $method
+     * @param array $arguments
+     * @return array
+     *
+     * return[0] = JsonEmt.object 表示有异常
+     *             false          表示连接失败
+     *             true           表示成功
+     *
+     * return[1] = data
+     */
+    public function asyncNoticeSend(string $method, array $arguments) {
+        $async = self::instance(self::$_addressArray);
+        return $this->_res(
+            null,
+            $async->_sendData( $method, $arguments)
+        );
+    }
+    
     /**
      * 同步
      * @param string $method
@@ -247,6 +241,10 @@ class RpcClient {
             return $this->_res($res->outputArray(),null);
         }
 
+        if($id === ''){
+            $this->close();
+            return $this->_res($res, true);
+        }
         $res = $this->_recvData();
         $this->close();
         if($res === false){
@@ -432,7 +430,9 @@ class RpcClient {
      * 关闭连接
      */
     protected function _closeConnection() {
-        fclose($this->_connection);
+        if(is_resource($this->_connection)){
+            fclose($this->_connection);
+        }
         $this->_connection = null;
         $this->_id         = null;
     }
