@@ -216,7 +216,7 @@ class RpcClient {
             $async->_sendData( $method, $arguments)
         );
     }
-    
+
     /**
      * 同步
      * @param string $method
@@ -289,10 +289,15 @@ class RpcClient {
         return $res;
     }
 
+    public function unregister() {
+        spl_autoload_unregister([$this, '_autoload']);
+    }
+
     /**
      * 关闭连接
      */
     public function close(){
+        $this->unregister();
         $this->_closeConnection();
     }
 
